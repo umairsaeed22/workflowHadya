@@ -73,33 +73,30 @@ exports.createContract = async (req, res) => {
 
 exports.getAllContracts = async (req, res) => {
   try {
-    /*
-      dynamic query based on department
-      example:
-      /api/contracts?department=operations
-    */
-
     const { department } = req.query;
 
-    let filter = {};
-
-    // if department is passed, filter by currentDepartment
-    if (department) {
-      filter.currentDepartment =
-        department.toLowerCase();
-    }
+    const filter = department
+      ? { currentDepartment: department.toLowerCase() }
+      : {};
 
     const contracts = await Contract.find(filter)
-      .populate("createdBy", "name email")
-      .sort({ createdAt: -1 });
+      // keep ALL required fields (no data loss)
+      .select("-__v") // removes only mongoose noise (safe)
+      .populate({
+        path: "createdBy",
+        select: "name email",
+        options: { lean: true } // faster populate
+      })
+      .sort({ createdAt: -1 })
+      .lean(); // 🚀 big performance boost
 
-    res.json({
+    return res.json({
       total: contracts.length,
       contracts
     });
 
   } catch (err) {
-    res.status(500).json({
+    return res.status(500).json({
       msg: err.message
     });
   }
@@ -421,111 +418,111 @@ exports.updateContractStatus = async (req, res) => {
 
 exports.getManagementStats = async (req, res) => {
   try {
-    /*
-      Get all contracts
-    */
-    const contracts = await Contract.find();
+    const statsAgg = await Contract.aggregate([
+      {
+        $group: {
+          _id: null,
 
-    /*
-      Department counts
-    */
-    const financeCount =
-      await Contract.countDocuments({
-        currentDepartment: "finance"
-      });
+          total: { $sum: 1 },
 
-    const legalCount =
-      await Contract.countDocuments({
-        currentDepartment: "legal"
-      });
+          positive: {
+            $sum: {
+              $cond: [{ $eq: ["$SOAStatus", "Positive"] }, 1, 0]
+            }
+          },
 
-    const leasingCount =
-      await Contract.countDocuments({
-        currentDepartment: "leasing"
-      });
+          negative: {
+            $sum: {
+              $cond: [{ $eq: ["$SOAStatus", "Negative"] }, 1, 0]
+            }
+          },
 
-    const operationsCount =
-      await Contract.countDocuments({
-        currentDepartment: "operations"
-      });
+          unsecured: {
+            $sum: {
+              $cond: [{ $eq: ["$hasGuarantee", false] }, 1, 0]
+            }
+          },
 
-    const managementCount =
-      await Contract.countDocuments({
-        currentDepartment: "management"
-      });
+          guaranteed: {
+            $sum: {
+              $cond: [{ $eq: ["$hasGuarantee", true] }, 1, 0]
+            }
+          },
 
-    /*
-      Main stats
-    */
+          refundable: {
+            $sum: {
+              $cond: [{ $gt: ["$depositAmount", 0] }, 1, 0]
+            }
+          },
+
+          nonRefundable: {
+            $sum: {
+              $cond: [{ $lte: ["$depositAmount", 0] }, 1, 0]
+            }
+          },
+
+          totalValue: { $sum: "$totalAmount" },
+          totalPaid: { $sum: "$paidAmount" },
+          totalDeposit: { $sum: "$depositAmount" },
+          totalDamage: { $sum: "$damageAmount" },
+
+          management: {
+            $sum: {
+              $cond: [{ $eq: ["$currentDepartment", "management"] }, 1, 0]
+            }
+          },
+
+          operations: {
+            $sum: {
+              $cond: [{ $eq: ["$currentDepartment", "operations"] }, 1, 0]
+            }
+          },
+
+          leasing: {
+            $sum: {
+              $cond: [{ $eq: ["$currentDepartment", "leasing"] }, 1, 0]
+            }
+          },
+
+          finance: {
+            $sum: {
+              $cond: [{ $eq: ["$currentDepartment", "finance"] }, 1, 0]
+            }
+          },
+
+          legal: {
+            $sum: {
+              $cond: [{ $eq: ["$currentDepartment", "legal"] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const data = statsAgg[0] || {};
+
     const stats = {
-      total: contracts.length,
-
-      positive:
-        contracts.filter(
-          (c) => c.SOAStatus === "Positive"
-        ).length,
-
-      negative:
-        contracts.filter(
-          (c) => c.SOAStatus === "Negative"
-        ).length,
-
-      unsecured:
-        contracts.filter(
-          (c) => !c.hasGuarantee
-        ).length,
-
-      guaranteed:
-        contracts.filter(
-          (c) => c.hasGuarantee
-        ).length,
-
-      refundable:
-        contracts.filter(
-          (c) => c.depositAmount > 0
-        ).length,
-
-      nonRefundable:
-        contracts.filter(
-          (c) => c.depositAmount <= 0
-        ).length,
+      total: data.total || 0,
+      positive: data.positive || 0,
+      negative: data.negative || 0,
+      unsecured: data.unsecured || 0,
+      guaranteed: data.guaranteed || 0,
+      refundable: data.refundable || 0,
+      nonRefundable: data.nonRefundable || 0,
 
       financials: {
-        totalValue:
-          contracts.reduce(
-            (sum, contract) =>
-              sum + (contract.totalAmount || 0),
-            0
-          ),
-
-        totalPaid:
-          contracts.reduce(
-            (sum, contract) =>
-              sum + (contract.paidAmount || 0),
-            0
-          ),
-
-        totalDeposit:
-          contracts.reduce(
-            (sum, contract) =>
-              sum + (contract.depositAmount || 0),
-            0
-          ),
-
-        totalDamage:
-          contracts.reduce(
-            (sum, contract) =>
-              sum + (contract.damageAmount || 0),
-            0
-          )
+        totalValue: data.totalValue || 0,
+        totalPaid: data.totalPaid || 0,
+        totalDeposit: data.totalDeposit || 0,
+        totalDamage: data.totalDamage || 0
       },
 
       departmentDistribution: {
-        management: managementCount,
-        operations: operationsCount,
-        leasing: leasingCount,
-        finance: financeCount,
-        legal: legalCount
+        management: data.management || 0,
+        operations: data.operations || 0,
+        leasing: data.leasing || 0,
+        finance: data.finance || 0,
+        legal: data.legal || 0
       }
     };
 
@@ -533,11 +530,12 @@ exports.getManagementStats = async (req, res) => {
       msg: "Management stats fetched successfully",
       stats
     });
+
   } catch (err) {
-    console.error(err);
+    console.error("Stats Error:", err);
 
     return res.status(500).json({
-      msg: err.message
+      msg: "Failed to fetch stats"
     });
   }
 };

@@ -257,7 +257,7 @@ function SOAView({ showStats = true }) {
                     <button
                       onClick={() => handleApprove(c)}
                       disabled={approvingId === c._id}
-                      className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl transition-all shadow-sm ${c.SOAStatus === 'Positive'
+                      className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl transition-all shadow-sm whitespace-nowrap ${c.SOAStatus === 'Positive'
                           ? 'bg-gray-900 text-white hover:bg-[#7f6421]'
                           : 'bg-red-600 text-white hover:bg-red-700'
                         }`}
@@ -330,7 +330,7 @@ function StatCard({ label, value, icon, color, subText }) {
   return (
     <div className="bg-white p-6 rounded-[28px] border border-gray-100 shadow-sm flex items-start justify-between group hover:border-[#7f6421]/20 transition-all">
       <div>
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{label}</p>
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1 h-[30px]">{label}</p>
         <p className="text-3xl font-black text-gray-900 tracking-tighter">{value}</p>
         <p className="text-[9px] font-bold text-gray-300 uppercase mt-1">{subText}</p>
       </div>

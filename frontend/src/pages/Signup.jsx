@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Building2, UserPlus, User, Mail, Lock, Briefcase, Fingerprint } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 
 function Signup() {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -14,24 +15,103 @@ function Signup() {
     department: "",
     role: ""
   });
+
   const [loading, setLoading] = useState(false);
+
+  // SECURITY: anti spam protection
+  const attemptsRef = useRef(0);
+  const lockRef = useRef(false);
 
   const departments = ["Management", "Finance", "Legal", "Operations", "Leasing", "Customer_Service"];
   const roles = ["Manager"];
 
+  // sanitize input
+  const sanitize = (value) =>
+    value.replace(/[<>]/g, "").trim();
+
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const isStrongPassword = (password) =>
+    password.length >= 6;
+
+  const isValidName = (name) =>
+    name.length >= 2 && name.length <= 50;
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({
+      ...formData,
+      [e.target.name]: sanitize(e.target.value)
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // SECURITY: lock after abuse
+    if (lockRef.current) {
+      toast.error("Too many attempts. Try again later.");
+      return;
+    }
+
+    const name = sanitize(formData.name);
+    const email = sanitize(formData.email);
+    const password = sanitize(formData.password);
+    const department = sanitize(formData.department);
+    const role = sanitize(formData.role);
+
+    // SECURITY CHECKS
+    if (!isValidName(name)) {
+      return toast.error("Invalid name format");
+    }
+
+    if (!isValidEmail(email)) {
+      return toast.error("Invalid email format");
+    }
+
+    if (!isStrongPassword(password)) {
+      return toast.error("Password too weak");
+    }
+
+    // whitelist enforcement (prevents tampering via devtools)
+    if (!departments.includes(department)) {
+      return toast.error("Invalid department selection");
+    }
+
+    if (!roles.includes(role)) {
+      return toast.error("Invalid role selection");
+    }
+
     try {
       setLoading(true);
-      await registerUser(formData);
+
+      await registerUser({
+        name,
+        email,
+        password,
+        department,
+        role
+      });
+
+      attemptsRef.current = 0;
+
       toast.success("Account Provisioned Successfully");
       navigate("/");
+
     } catch (err) {
+      attemptsRef.current += 1;
+
+      if (attemptsRef.current >= 5) {
+        lockRef.current = true;
+
+        setTimeout(() => {
+          lockRef.current = false;
+          attemptsRef.current = 0;
+        }, 15000);
+      }
+
       toast.error(err.response?.data?.msg || "Provisioning Failed");
+
     } finally {
       setLoading(false);
     }
@@ -40,7 +120,7 @@ function Signup() {
   return (
     <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-12 relative overflow-hidden">
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[#7f6421]/5 rounded-full blur-3xl" />
-      
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -59,15 +139,18 @@ function Signup() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Full Name</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">
+                Full Name
+              </label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                 <input
                   type="text"
                   name="name"
-                  placeholder="John Doe"
                   value={formData.name}
                   onChange={handleChange}
                   required
@@ -77,13 +160,14 @@ function Signup() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Work Email</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">
+                Work Email
+              </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                 <input
                   type="email"
                   name="email"
-                  placeholder="john@firm.com"
                   value={formData.email}
                   onChange={handleChange}
                   required
@@ -94,13 +178,14 @@ function Signup() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Master Password</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">
+              Master Password
+            </label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
               <input
                 type="password"
                 name="password"
-                placeholder="Secure Character Set"
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -110,8 +195,11 @@ function Signup() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Department Unit</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">
+                Department Unit
+              </label>
               <select
                 name="department"
                 value={formData.department}
@@ -127,7 +215,9 @@ function Signup() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">System Role</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">
+                System Role
+              </label>
               <select
                 name="role"
                 value={formData.role}
@@ -141,6 +231,7 @@ function Signup() {
                 ))}
               </select>
             </div>
+
           </div>
 
           <button
@@ -156,6 +247,7 @@ function Signup() {
               </>
             )}
           </button>
+
         </form>
 
         <div className="mt-8 pt-6 border-t border-gray-50 text-center">
@@ -166,6 +258,7 @@ function Signup() {
             </Link>
           </p>
         </div>
+
       </motion.div>
     </div>
   );

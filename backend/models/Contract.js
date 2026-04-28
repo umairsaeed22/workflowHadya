@@ -1,211 +1,136 @@
-// models/Contract.js
-
 const mongoose = require("mongoose");
 
-const ContractSchema = new mongoose.Schema({
-  customerName: {
-    type: String,
-    required: true
-  },
+const ContractSchema = new mongoose.Schema(
+  {
+    customerName: {
+      type: String,
+      required: true,
+      trim: true
+    },
 
-  totalAmount: {
-    type: Number,
-    required: true
-  },
+    totalAmount: {
+      type: Number,
+      required: true
+    },
 
-  paidAmount: {
-    type: Number,
-    required: true
-  },
+    paidAmount: {
+      type: Number,
+      required: true
+    },
 
-  /*
-    FINAL SOA BALANCE
+    SOABalance: {
+      type: Number,
+      default: 0
+    },
 
-    Positive value  -> customer owes company
-    Zero/Negative   -> refundable / clear
-  */
-  SOABalance: {
-    type: Number,
-    default: 0
-  },
+    SOAStatus: {
+      type: String,
+      enum: ["Positive", "Negative"],
+      default: "Positive"
+    },
 
-  /*
-    SOA STATUS
+    depositAmount: {
+      type: Number,
+      default: 0
+    },
 
-    Positive = customer clear / refundable
-    Negative = customer still owes
-  */
-  SOAStatus: {
-    type: String,
-    enum: ["Positive", "Negative"],
-    default: "Positive"
-  },
+    hasGuarantee: {
+      type: Boolean,
+      default: false
+    },
 
-  /*
-    SECURITY DEPOSIT
-  */
-  depositAmount: {
-    type: Number,
-    default: 0
-  },
+    guaranteeType: {
+      type: String,
+      enum: ["None", "PN", "BG", "Unified", "Manual"],
+      default: "None"
+    },
 
-  hasGuarantee: {
-    type: Boolean,
-    default: false
-  },
+    hasEjar: {
+      type: Boolean,
+      default: false
+    },
 
-  guaranteeType: {
-    type: String,
-    enum: [
-      "None",
-      "PN",
-      "BG",
-      "Unified",
-      "Manual"
-    ],
-    default: "None"
-  },
+    damageAmount: {
+      type: Number,
+      default: 0
+    },
 
-  hasEjar: {
-    type: Boolean,
-    default: false
-  },
+    hasRemainingDebt: {
+      type: Boolean,
+      default: false
+    },
 
-  /*
-    DAMAGE AMOUNT
-    Used for Negative Flow
-  */
-  damageAmount: {
-    type: Number,
-    default: 0
-  },
+    currentStage: {
+      type: String,
+      default: "management_approval"
+    },
 
-  /*
-    AUTO-CALCULATED
-    true = customer still owes money
-  */
-  hasRemainingDebt: {
-    type: Boolean,
-    default: false
-  },
+    currentDepartment: {
+      type: String,
+      default: "management",
+      lowercase: true, // 🔥 ensures consistent indexing
+      index: true
+    },
 
-  /*
-    WORKFLOW FIELDS
-  */
-  currentStage: {
-    type: String,
-    default: "management_approval"
-  },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true
+    },
 
-  currentDepartment: {
-    type: String,
-    default: "management"
-  },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+      index: true
+    },
 
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-
-  /*
-    HISTORY TRACKING
-  */
-  history: [
-    {
-      state: {
-        type: String
-      },
-
-      department: {
-        type: String
-      },
-
-      action: {
-        type: String
-      },
-
-      user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
-      },
-
-      timestamp: {
-        type: Date,
-        default: Date.now
+    history: [
+      {
+        state: String,
+        department: String,
+        action: String,
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now
+        }
       }
-    }
-  ]
-});
+    ]
+  },
+  {
+    timestamps: false
+  }
+);
 
 /*
-  PRE-SAVE HOOK
-
-  BUSINESS LOGIC:
-
-  Example:
-  damages = 6000
-  deposit = 5000
-
-  customer owes:
-  6000 - 5000 = 1000
-
-  Since balance > 0
-  SOAStatus = Negative
-
-  If:
-  deposit >= damages
-
-  then:
-  SOAStatus = Positive
+  WHERE currentDepartment = ?
+  ORDER BY createdAt DESC
 */
+ContractSchema.index({ currentDepartment: 1, createdAt: -1 });
 
+/*
+  PRE-SAVE BUSINESS LOGIC
+*/
 ContractSchema.pre("save", function () {
-  /*
-    Payment balance from contract
-  */
   const paymentBalance =
     this.totalAmount - this.paidAmount;
 
-  /*
-    Core business rule
-
-    damages - deposit
-
-    positive => customer owes money
-    zero/negative => refundable or clear
-  */
   const damageVsDeposit =
     this.damageAmount - this.depositAmount;
 
-  /*
-    Final SOA balance
-  */
   const finalBalance =
     paymentBalance + damageVsDeposit;
 
   this.SOABalance = finalBalance;
 
-  /*
-    SOA Decision
-  */
   this.SOAStatus =
-    finalBalance > 0
-      ? "Negative"
-      : "Positive";
+    finalBalance > 0 ? "Negative" : "Positive";
 
-  /*
-    Auto set remaining debt
-  */
   this.hasRemainingDebt =
     finalBalance > 0;
 });
 
-module.exports = mongoose.model(
-  "Contract",
-  ContractSchema
-);
+module.exports = mongoose.model("Contract", ContractSchema);

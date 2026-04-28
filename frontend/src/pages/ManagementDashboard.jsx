@@ -14,7 +14,7 @@ function ManagementDashboard() {
   const [stats, setStats] = useState(null);
   const [user, setUser] = useState({ name: "Manager" });
   const [loading, setLoading] = useState(true);
-  
+
   // Notification States
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -55,7 +55,7 @@ function ManagementDashboard() {
     } catch (err) {
       toast.error("Failed to sync dashboard stats");
     } finally {
-      setTimeout(() => setLoading(false), 300);
+      setLoading(false);
     }
   };
 
@@ -107,11 +107,10 @@ function ManagementDashboard() {
           <div className="flex items-center gap-6">
             {/* NOTIFICATION CENTER */}
             <div className="relative" ref={notificationRef}>
-              <button 
+              <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className={`p-2 transition-all relative rounded-xl ${
-                  showNotifications ? 'bg-[#7f6421]/10 text-[#7f6421]' : 'text-gray-400 hover:text-[#7f6421]'
-                }`}
+                className={`p-2 transition-all relative rounded-xl ${showNotifications ? 'bg-[#7f6421]/10 text-[#7f6421]' : 'text-gray-400 hover:text-[#7f6421]'
+                  }`}
               >
                 <Bell size={20} />
                 {notifications.length > 0 && (
@@ -128,16 +127,16 @@ function ManagementDashboard() {
                       {notifications.length} Active
                     </span>
                   </div>
-                  
+
                   <div className="max-h-[380px] overflow-y-auto custom-scrollbar">
                     {notifications.length > 0 ? (
                       notifications.map((notif, idx) => (
                         <div key={notif._id || idx} className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
                           <div className="flex gap-4">
                             <div className="mt-1">
-                               <div className="p-2 bg-amber-50 text-amber-600 rounded-xl group-hover:bg-[#7f6421] group-hover:text-white transition-all">
-                                 <Activity size={14} />
-                               </div>
+                              <div className="p-2 bg-amber-50 text-amber-600 rounded-xl group-hover:bg-[#7f6421] group-hover:text-white transition-all">
+                                <Activity size={14} />
+                              </div>
                             </div>
                             <div className="flex-1">
                               <p className="text-xs font-bold text-gray-800 leading-relaxed mb-1">{notif.message}</p>
@@ -160,7 +159,7 @@ function ManagementDashboard() {
                       </div>
                     )}
                   </div>
-                  
+
                   <button className="w-full py-4 text-[10px] font-black text-[#7f6421] border-t border-gray-50 uppercase tracking-widest hover:bg-gray-50 transition-colors">
                     View Audit History
                   </button>
@@ -183,7 +182,7 @@ function ManagementDashboard() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-8 custom-scrollbar transition-opacity duration-500 ease-in-out opacity-100 animate-in fade-in">
-          
+
           {activeSection === "dashboard" && (
             <div className="space-y-6">
               {/* <ManagementCharts stats={stats} /> */}
