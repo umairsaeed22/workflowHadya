@@ -8,6 +8,7 @@ import OperationsDashboard from "./pages/OperationsDashboard";
 import LegalDashboard from "./pages/LegalDashboard";
 import LeasingDashboard from "./pages/LeasingDashboard";
 import FinanceDashboard from "./pages/FinanceDashboard";
+import CustomerServiceDashboard from "./pages/CustomerServiceDashboard";
 
 function App() {
   return (
@@ -41,6 +42,11 @@ function App() {
         <Route
           path="/finance-dashboard"
           element={<FinanceDashboard />}
+        />
+
+        <Route
+          path="/customerService-dashboard"
+          element={<CustomerServiceDashboard />}
         />
       </Routes>
     </BrowserRouter>

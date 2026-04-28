@@ -5,42 +5,62 @@ const Notification = require("../models/Notification");
 
 exports.createContract = async (req, res) => {
   try {
-    const contract = await Contract.create({
-      customerName: req.body.customerName,
-      totalAmount: req.body.totalAmount,
-      paidAmount: req.body.paidAmount,
-      depositAmount: req.body.depositAmount,
-      hasGuarantee: req.body.hasGuarantee,
-      guaranteeType: req.body.guaranteeType,
-      hasEjar: req.body.hasEjar,
-      
-      // FIX: Added these fields to the create call
-      damageAmount: req.body.damageAmount || 0,
-      hasRemainingDebt: req.body.hasRemainingDebt || false,
+    const {
+      customerName,
+      totalAmount,
+      paidAmount,
+      depositAmount,
+      hasGuarantee,
+      guaranteeType,
+      hasEjar,
+      damageAmount,
+      hasRemainingDebt,
+      SOABalance,
+      SOAStatus,
+      currentStage,      // Take directly from body
+      currentDepartment  // Take directly from body
+    } = req.body;
 
-      currentStage: "management_approval",
-      currentDepartment: "management",
+    const contract = await Contract.create({
+      customerName,
+      totalAmount,
+      paidAmount,
+      depositAmount,
+      hasGuarantee,
+      guaranteeType,
+      hasEjar,
+      SOABalance: SOABalance || 0,
+      SOAStatus: SOAStatus || "Positive",
+      damageAmount: damageAmount || 0,
+      hasRemainingDebt: hasRemainingDebt || false,
+
+      // Use the department and stage provided in the request body
+      // Default to management if not provided
+      currentStage: currentStage || "management_approval",
+      currentDepartment: currentDepartment || "management",
+      
       createdBy: req.user.id,
       history: [
         {
-          state: "SOA_CHECKED",
-          department: "management",
-          action: "SOA Initiated",
+          state: (currentStage || "management_approval").toUpperCase(),
+          department: currentDepartment || "management",
+          action: "Contract Initiated via Payload",
           user: req.user.id
         }
       ]
     });
 
     /* CREATE NOTIFICATION */
+    // This will now correctly alert the department specified in your test payload
     await Notification.create({
-      title: "New Contract Created",
-      message: `New contract for ${contract.customerName} requires management approval`,
-      department: "management",
+      title: "New Task Assigned",
+      message: `Contract for ${contract.customerName} requires ${contract.currentDepartment} action`,
+      department: contract.currentDepartment,
       contractId: contract._id
     });
 
     res.json({
-      msg: "Contract created",
+      msg: `Contract created in ${contract.currentDepartment} department`,
       contract
     });
 
@@ -49,7 +69,6 @@ exports.createContract = async (req, res) => {
     res.status(500).json({ msg: err.message });
   }
 };
-
 // controllers/contractController.js
 
 exports.getAllContracts = async (req, res) => {
@@ -257,152 +276,267 @@ exports.rejectAndProcessNegative = async (req, res) => {
       });
     }
 
-    /*
-      Save optional values to contract
-    */
+    /* 1. Update values from the Manager's input */
     contract.damageAmount = damageAmount;
     contract.hasRemainingDebt = hasRemainingDebt;
 
     /*
-      STEP 1: INITIAL REJECTION
-
-      REPORTING POINT:
-      SOA_CHECKED (Negative)
+      STEP 1: INITIAL REJECTION LOGGING
+      REPORTING POINT: SOA_CHECKED (Negative)
     */
     contract.history.push({
       state: "SOA_CHECKED",
       department: "management",
-      action: `Negative SOA confirmed. Damages: ${damageAmount}. Moving to Operations for HO Technical Upload.`,
+      action: `Negative SOA confirmed. Damages: ${damageAmount}. Starting negative flow.`,
       user: req.user.id
     });
 
     /*
-      Move to Operations first
+      =====================================================
+      CASE 1: GUARANTEE LOGIC (Keep existing logic)
+      =====================================================
     */
-    contract.currentDepartment = "operations";
-    contract.currentStage = "awaiting_ho_upload";
+    if (contract.hasGuarantee) {
+      if (damageAmount > contract.depositAmount) {
+        contract.currentDepartment = "leasing";
+        contract.currentStage = "refund_adjustment_pending";
 
-    /*
-      CASE:
-      No remaining debt
+        contract.history.push({
+          state: "INSUFFICIENT_BALANCE",
+          department: "leasing",
+          action: `Damage amount (${damageAmount}) exceeds balance (${contract.depositAmount}). Sent to Leasing for adjustment/collection.`,
+          user: req.user.id
+        });
+      } else {
+        contract.currentDepartment = "operations";
+        contract.currentStage = "operations_send_confirmation_email";
 
-      → Skip legal recovery
-      → Move directly to Finance
-    */
-    if (!hasRemainingDebt) {
-      contract.currentDepartment = "finance";
-      contract.currentStage = "financial_clearance";
-
-      contract.history.push({
-        state: "NO_REMAINING_DEBT",
-        department: "finance",
-        action: "No remaining debt found. Moving to Finance for closure process.",
-        user: req.user.id
-      });
+        contract.history.push({
+          state: "BALANCE_COVERED",
+          department: "operations",
+          action: `Damage amount (${damageAmount}) covered by balance (${contract.depositAmount}). Sent to Operations for confirmation email.`,
+          user: req.user.id
+        });
+      }
     }
 
     /*
-      CASE:
-      Remaining debt exists
+      =====================================================
+      CASE 2: NO GUARANTEE FLOW (Updated logic)
+      =====================================================
     */
-    if (hasRemainingDebt) {
-      /*
-        No Guarantee
-      */
-      if (!contract.hasGuarantee) {
+    else {
+      if (!hasRemainingDebt) {
+        /* No Debt + No Guarantee -> Finance Closure */
+        contract.currentDepartment = "finance";
+        contract.currentStage = "financial_clearance";
+
+        contract.history.push({
+          state: "NO_REMAINING_DEBT",
+          department: "finance",
+          action: "No remaining debt found. Moving to Finance for closure process.",
+          user: req.user.id
+        });
+      } else {
+        /* Debt exists + No Guarantee:
+           Route to LEGAL for management approval of court filing
+        */
         contract.currentDepartment = "legal";
-        contract.currentStage =
-          "court_proceedings_initiated";
+        contract.currentStage = "management_approval";
 
         contract.history.push({
           state: "LEGAL_ACTION_REQUIRED",
           department: "legal",
-          action:
-            "No guarantee found. Legal initiating standard court case.",
+          action: "No guarantee found. Approved from Management and Now ready for Long-Term Court Filing.",
           user: req.user.id
         });
       }
-
-      /*
-        Has Guarantee
-      */
-      else {
-        /*
-          PN / Unified
-        */
-        if (
-          contract.guaranteeType === "PN" ||
-          contract.guaranteeType === "Unified"
-        ) {
-          contract.currentDepartment = "legal";
-          contract.currentStage =
-            "enforcement_court_15days";
-
-          contract.history.push({
-            state: "ENFORCEMENT_INITIATED",
-            department: "legal",
-            action: `Enforcement Court case filed (${contract.guaranteeType}). 15-day notice period started.`,
-            user: req.user.id
-          });
-        }
-
-        /*
-          BG
-        */
-        else if (
-          contract.guaranteeType === "BG"
-        ) {
-          contract.currentDepartment = "finance";
-          contract.currentStage =
-            "bg_liquidation_pending";
-
-          contract.history.push({
-            state: "FINANCE_CLAIM_INITIATED",
-            department: "finance",
-            action:
-              "Bank Guarantee found. Finance to claim/liquidate funds with the bank.",
-            user: req.user.id
-          });
-        }
-
-        /*
-          Manual
-        */
-        else if (
-          contract.guaranteeType === "Manual"
-        ) {
-          contract.currentDepartment = "legal";
-          contract.currentStage =
-            "manual_court_long_term";
-
-          contract.history.push({
-            state: "LEGAL_COURT_LONG_TERM",
-            department: "legal",
-            action:
-              "Manual contract found. Initiating long-term court proceedings.",
-            user: req.user.id
-          });
-        }
-      }
     }
 
+    // Save changes (This triggers the pre-save hook for SOABalance)
     await contract.save();
 
     return res.json({
       msg: "Negative flow processed successfully",
       data: {
         contractId: contract._id,
-        damageAmount,
-        hasRemainingDebt,
-        currentStage: contract.currentStage,
-        currentDepartment:
-          contract.currentDepartment
+        customerName: contract.customerName,
+        damageAmount: contract.damageAmount,
+        depositAmount: contract.depositAmount,
+        SOABalance: contract.SOABalance,
+        currentDepartment: contract.currentDepartment,
+        currentStage: contract.currentStage
       }
     });
+    
   } catch (err) {
-    console.log(err);
-
+    console.error(err);
     res.status(500).json({
+      msg: err.message
+    });
+  }
+};
+
+// Add this to your existing contractController.js
+exports.updateContractStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      currentDepartment, 
+      currentStage, 
+      historyAction 
+    } = req.body;
+
+    const contract = await Contract.findById(id);
+
+    if (!contract) {
+      return res.status(404).json({ msg: "Contract not found" });
+    }
+
+    // Update the Routing
+    if (currentDepartment) contract.currentDepartment = currentDepartment;
+    if (currentStage) contract.currentStage = currentStage;
+
+    // Log the action to history
+    contract.history.push({
+      state: currentStage.toUpperCase(),
+      department: "operations", // This API is being called by Operations
+      action: historyAction || `Moved to ${currentDepartment}`,
+      user: req.user.id // From auth middleware
+    });
+
+    await contract.save();
+
+    res.json({
+      msg: "Status updated successfully",
+      contract
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// controllers/contractController.js
+
+exports.getManagementStats = async (req, res) => {
+  try {
+    /*
+      Get all contracts
+    */
+    const contracts = await Contract.find();
+
+    /*
+      Department counts
+    */
+    const financeCount =
+      await Contract.countDocuments({
+        currentDepartment: "finance"
+      });
+
+    const legalCount =
+      await Contract.countDocuments({
+        currentDepartment: "legal"
+      });
+
+    const leasingCount =
+      await Contract.countDocuments({
+        currentDepartment: "leasing"
+      });
+
+    const operationsCount =
+      await Contract.countDocuments({
+        currentDepartment: "operations"
+      });
+
+    const managementCount =
+      await Contract.countDocuments({
+        currentDepartment: "management"
+      });
+
+    /*
+      Main stats
+    */
+    const stats = {
+      total: contracts.length,
+
+      positive:
+        contracts.filter(
+          (c) => c.SOAStatus === "Positive"
+        ).length,
+
+      negative:
+        contracts.filter(
+          (c) => c.SOAStatus === "Negative"
+        ).length,
+
+      unsecured:
+        contracts.filter(
+          (c) => !c.hasGuarantee
+        ).length,
+
+      guaranteed:
+        contracts.filter(
+          (c) => c.hasGuarantee
+        ).length,
+
+      refundable:
+        contracts.filter(
+          (c) => c.depositAmount > 0
+        ).length,
+
+      nonRefundable:
+        contracts.filter(
+          (c) => c.depositAmount <= 0
+        ).length,
+
+      financials: {
+        totalValue:
+          contracts.reduce(
+            (sum, contract) =>
+              sum + (contract.totalAmount || 0),
+            0
+          ),
+
+        totalPaid:
+          contracts.reduce(
+            (sum, contract) =>
+              sum + (contract.paidAmount || 0),
+            0
+          ),
+
+        totalDeposit:
+          contracts.reduce(
+            (sum, contract) =>
+              sum + (contract.depositAmount || 0),
+            0
+          ),
+
+        totalDamage:
+          contracts.reduce(
+            (sum, contract) =>
+              sum + (contract.damageAmount || 0),
+            0
+          )
+      },
+
+      departmentDistribution: {
+        management: managementCount,
+        operations: operationsCount,
+        leasing: leasingCount,
+        finance: financeCount,
+        legal: legalCount
+      }
+    };
+
+    return res.json({
+      msg: "Management stats fetched successfully",
+      stats
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
       msg: err.message
     });
   }

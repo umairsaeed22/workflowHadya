@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, UserPlus } from "lucide-react";
+import { Building2, UserPlus, User, Mail, Lock, Briefcase, Fingerprint } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../services/api";
+import toast from "react-hot-toast";
 
 function Signup() {
   const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -14,166 +14,158 @@ function Signup() {
     department: "",
     role: ""
   });
-
   const [loading, setLoading] = useState(false);
 
-  const departments = [
-    "Management",
-    "Finance",
-    "Legal",
-    "Operations"
-  ];
-
-  const roles = [
-    "Admin",
-    "Manager",
-    "Staff"
-  ];
+  const departments = ["Management", "Finance", "Legal", "Operations", "Leasing", "Customer_Service"];
+  const roles = ["Manager"];
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     try {
       setLoading(true);
-
       await registerUser(formData);
-
-      alert("User registered successfully");
-
-      // redirect to login page
+      toast.success("Account Provisioned Successfully");
       navigate("/");
     } catch (err) {
-      alert(
-        err.response?.data?.msg || "Registration failed"
-      );
+      toast.error(err.response?.data?.msg || "Provisioning Failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[#7f6421]/5 rounded-full blur-3xl" />
+      
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-8"
+        className="bg-white w-full max-w-xl rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] p-10 border border-gray-100 relative z-10"
       >
-        <div className="flex items-center gap-3 mb-8">
-          <Building2 size={30} />
-
+        <div className="flex items-center gap-4 mb-10 border-b border-gray-50 pb-8">
+          <div className="w-14 h-14 bg-[#7f6421] rounded-2xl flex items-center justify-center shadow-lg shadow-[#7f6421]/20">
+            <Fingerprint size={28} className="text-white" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold">
-              Create Account
-            </h1>
-
-            <p className="text-sm text-gray-500">
-              Contract Management System
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Onboarding</h1>
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mt-1">
+              System Access Provisioning
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            name="name"
-            placeholder="Full Name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="w-full p-3 border rounded-lg mb-4"
-          />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="John Doe"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#7f6421]/10 transition-all font-medium"
+                />
+              </div>
+            </div>
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="w-full p-3 border rounded-lg mb-4"
-          />
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Work Email</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="john@firm.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#7f6421]/10 transition-all font-medium"
+                />
+              </div>
+            </div>
+          </div>
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="w-full p-3 border rounded-lg mb-4"
-          />
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Master Password</label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+              <input
+                type="password"
+                name="password"
+                placeholder="Secure Character Set"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#7f6421]/10 transition-all font-medium"
+              />
+            </div>
+          </div>
 
-          <select
-            name="department"
-            value={formData.department}
-            onChange={handleChange}
-            required
-            className="w-full p-3 border rounded-lg mb-4"
-          >
-            <option value="">
-              Select Department
-            </option>
-
-            {departments.map((dept) => (
-              <option
-                key={dept}
-                value={dept}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Department Unit</label>
+              <select
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+                required
+                className="w-full p-3.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-black uppercase tracking-tighter outline-none cursor-pointer focus:ring-2 focus:ring-[#7f6421]/10"
               >
-                {dept}
-              </option>
-            ))}
-          </select>
+                <option value="">Select Unit</option>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>{dept.replace('_', ' ')}</option>
+                ))}
+              </select>
+            </div>
 
-          <select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            required
-            className="w-full p-3 border rounded-lg mb-6"
-          >
-            <option value="">
-              Select Role
-            </option>
-
-            {roles.map((role) => (
-              <option
-                key={role}
-                value={role}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">System Role</label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                required
+                className="w-full p-3.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-black uppercase tracking-tighter outline-none cursor-pointer focus:ring-2 focus:ring-[#7f6421]/10"
               >
-                {role}
-              </option>
-            ))}
-          </select>
+                <option value="">Select Level</option>
+                {roles.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white p-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-[#7f6421] transition-all shadow-lg mt-4 active:scale-95 disabled:opacity-50"
           >
-            <UserPlus size={18} />
-
-            {loading
-              ? "Creating Account..."
-              : "Sign Up"}
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                <UserPlus size={18} /> Provision Account
+              </>
+            )}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account?{" "}
-          <Link
-            to="/"
-            className="font-semibold text-black"
-          >
-            Login
-          </Link>
-        </p>
+        <div className="mt-8 pt-6 border-t border-gray-50 text-center">
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter">
+            Existing Auditor?{" "}
+            <Link to="/" className="text-[#7f6421] hover:underline decoration-2 underline-offset-4">
+              Return to Vault
+            </Link>
+          </p>
+        </div>
       </motion.div>
     </div>
   );

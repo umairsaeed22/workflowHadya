@@ -34,8 +34,22 @@ app.use(
 );
 
 app.use(
-  "/api/management",
-  require("./routes/contractRoutes")
+  "/api/ejar",
+  require("./routes/ejarRoutes")
+);
+
+// app.js OR server.js
+
+const legalRoutes =
+  require("./routes/legalRoutes");
+
+/*
+  REGISTER ROUTE
+*/
+
+app.use(
+  "/api",
+  legalRoutes
 );
 
 const PORT = process.env.PORT || 5000;

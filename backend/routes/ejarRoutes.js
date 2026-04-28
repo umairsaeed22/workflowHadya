@@ -6,6 +6,10 @@ const {
   uploadToEjar
 } = require("../controllers/ejarController");
 
+const {
+  uploadToEjarNegativeFlow
+} = require("../controllers/ejarController");
+
 const authMiddleware = require("../middleware/authMiddleware"); // IMPORT THIS
 
 const upload = multer({
@@ -17,6 +21,18 @@ router.post(
   authMiddleware, // ADD THIS
   upload.single("hoFile"),
   uploadToEjar
+);
+
+/*
+  NEGATIVE FLOW
+  Leasing -> Upload HO -> Route by Guarantee Matrix
+*/
+
+router.post(
+  "/contracts/:id/upload-ejar-negative",
+  authMiddleware,
+  upload.single("hoFile"),
+  uploadToEjarNegativeFlow
 );
 
 module.exports = router;

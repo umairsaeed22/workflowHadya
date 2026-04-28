@@ -91,6 +91,48 @@ export const rejectAndProcessNegative = (
   payload
 ) =>
   API.post(
-    `/management/contracts/${contractId}/reject-negative`,
+    `/contracts/${contractId}/reject-negative`,
     payload
+  );
+
+export const uploadToEjarNegativeFlow = (
+  contractId,
+  formData
+) =>
+  API.post(
+    `/ejar/contracts/${contractId}/upload-ejar-negative`,
+    formData,
+    {
+      headers: {
+        "Content-Type":
+          "multipart/form-data"
+      }
+    }
+  );
+
+  export const updateContractStatus = (
+  contractId,
+  payload
+) =>
+  API.put(
+    `/contracts/${contractId}/update-status`,
+    payload
+  );
+
+export const sendLegalConfirmationEmail =
+  (contractId) =>
+    API.post(
+      `/contracts/${contractId}/legal-confirmation-email`
+    );
+    
+export const getManagementStats = () =>
+  API.get(
+    "/contracts/management-stats"
+  );
+
+export const getNotificationsByDepartment = (
+  department
+) =>
+  API.get(
+    `/notifications?department=${department}`
   );

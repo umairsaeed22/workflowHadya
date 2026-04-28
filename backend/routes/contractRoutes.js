@@ -5,12 +5,29 @@ const {
   createContract,
   getAllContracts,
   getAllContractsForManagement,
-  approveContract
+  approveContract,
+  rejectAndProcessNegative,
+  updateContractStatus,
+  getManagementStats
 } = require("../controllers/contractController");
 
-router.post("/", auth, createContract);
+/*
+CREATE CONTRACT
+*/
+router.post(
+  "/",
+  auth,
+  createContract
+);
 
-router.get("/", auth, getAllContracts);
+/*
+GET ALL CONTRACTS
+*/
+router.get(
+  "/",
+  auth,
+  getAllContracts
+);
 
 /*
 APPROVE CONTRACT
@@ -21,32 +38,41 @@ router.put(
   approveContract
 );
 
+/*
+MANAGEMENT ALL CONTRACTS
+*/
 router.get(
   "/all",
   auth,
   getAllContractsForManagement
 );
 
-const {
+/*
+NEGATIVE FLOW
+IMPORTANT:
+NO /contracts here
+*/
+router.post(
+  "/:id/reject-negative",
+  auth,
   rejectAndProcessNegative
-} = require("../controllers/contractController");
-
-const authMiddleware = require("../middleware/authMiddleware");
+);
 
 /*
-  Management → Negative SOA Flow
-
-  REPORTING POINT:
-  SOA_CHECKED (Negative)
-
-  FLOW:
-  Management → Operations → Legal / Finance
+UPDATE STATUS
+IMPORTANT:
+NO /contracts here
 */
+router.put(
+  "/:id/update-status",
+  auth,
+  updateContractStatus
+);
 
-router.post(
-  "/contracts/:id/reject-negative",
-  authMiddleware,
-  rejectAndProcessNegative
+router.get(
+  "/management-stats",
+  auth,
+  getManagementStats
 );
 
 module.exports = router;

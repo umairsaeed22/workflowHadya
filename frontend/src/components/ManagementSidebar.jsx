@@ -1,69 +1,46 @@
-import {
-  LayoutDashboard,
-  FileText,
-  BarChart3,
-  LogOut
-} from "lucide-react";
+import { LayoutDashboard, FileText, BarChart3, LogOut } from "lucide-react";
 
-function ManagementSidebar({
-  activeSection,
-  setActiveSection,
-  handleLogout
-}) {
+function ManagementSidebar({ activeSection, setActiveSection, handleLogout }) {
   const menuItems = [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: <LayoutDashboard size={20} />
-    },
-    {
-      id: "soa",
-      label: "SOA",
-      icon: <FileText size={20} />
-    },
-    {
-      id: "reports",
-      label: "Reports",
-      icon: <BarChart3 size={20} />
-    }
+    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
+    { id: "soa", label: "SOA Queue", icon: <FileText size={18} /> },
+    { id: "reports", label: "Audit Reports", icon: <BarChart3 size={18} /> }
   ];
 
   return (
-    <div className="w-[280px] min-h-screen backdrop-blur-xl bg-white/10 border-r border-white/10 p-6 flex flex-col justify-between">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-8">
-          Management Panel
-        </h2>
+    <div className="w-[260px] h-screen bg-white border-r border-gray-100 p-6 flex flex-col justify-between shadow-sm">
+      <div className="space-y-8">
+        <div className="px-4 py-2">
+          <h1 className="text-xl text-center font-black text-gray-900 tracking-tighter">HADYA</h1>
+        </div>
 
-        <div className="space-y-3">
+        <nav className="space-y-2">
           {menuItems.map((item) => (
             <button
               key={item.id}
-              type="button"
               onClick={() => setActiveSection(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition duration-200 ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                 activeSection === item.id
-                  ? "bg-white text-[#0d1a4a] font-semibold shadow-lg"
-                  : "bg-white/5 text-white hover:bg-white/10"
+                  ? "bg-[#7f6421] text-white shadow-lg shadow-[#7f6421]/20 font-bold"
+                  : "text-gray-400 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
               {item.icon}
-              {item.label}
+              <span className="text-sm tracking-wide">{item.label}</span>
             </button>
           ))}
-        </div>
+        </nav>
       </div>
 
       <button
-        type="button"
         onClick={handleLogout}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#7f6421] text-white hover:bg-[#8e722a] transition duration-200"
+        className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-colors font-bold text-sm"
       >
-        <LogOut size={20} />
-        Logout
+        <LogOut size={18} />
+        Logout Session
       </button>
     </div>
   );
-} // Added the missing closing brace here
+}
 
 export default ManagementSidebar;
